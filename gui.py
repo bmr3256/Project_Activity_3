@@ -1,11 +1,86 @@
-
 import tkinter as tk
 from tkinter import messagebox, filedialog
 
-def Run_information(): #Gets and uses IPv4 info from main
+
+# Color scheme
+
+BG = "#0f172a"          
+HEADER_BG = "#111c34"  
+CARD = "#1e293b"      
+CARD_BORDER = "#334155"
+TEXT = "#e2e8f0"        
+MUTED = "#94a3b8"    
+ACCENT = "#38bdf8"      
+ACCENT_DARK = "#0ea5e9"
+ACCENT_HOVER = "#7dd3fc"
+SECONDARY = "#334155"  
+SECONDARY_HOVER = "#475569"
+DANGER = "#ef4444"
+DANGER_HOVER = "#f87171"
+SUCCESS = "#4ade80"
+ERROR = "#f87171"
+DISABLED = "#475569"
+
+FONT = "Segoe UI"     
+
+# Buttons
+class FlatButton(tk.Label):
+    def __init__(self, parent, text, command, bg, hover, fg="#ffffff", width=13):
+        super().__init__(
+            parent,
+            text=text,
+            bg=bg,
+            fg=fg,
+            font=(FONT, 11, "bold"),
+            width=width,
+            pady=9,
+            cursor="hand2",
+        )
+        self._bg = bg
+        self._hover = hover
+        self._fg = fg
+        self._command = command
+        self._enabled = True
+
+        self.bind("<Enter>", self._on_enter)
+        self.bind("<Leave>", self._on_leave)
+        self.bind("<ButtonRelease-1>", self._on_click)
+
+    def _on_enter(self, _event):
+        if self._enabled:
+            super().config(bg=self._hover)
+
+    def _on_leave(self, _event):
+        if self._enabled:
+            super().config(bg=self._bg)
+
+    def _on_click(self, _event):
+        if self._enabled and self._command:
+            self._command()
+
+    def config(self, **kwargs):
+        if "state" in kwargs:
+            self._enabled = kwargs.pop("state") != "disabled"
+            if self._enabled:
+                super().config(bg=self._bg, fg=self._fg, cursor="hand2")
+            else:
+                super().config(bg=DISABLED, fg=MUTED, cursor="arrow")
+        if kwargs:
+            super().config(**kwargs)
+
+    configure = config
+
+
+# Status
+def set_status(text, kind="info"):
+    colors = {"info": MUTED, "success": SUCCESS, "error": ERROR, "loading": ACCENT}
+    status_label.config(text=text, fg=colors.get(kind, MUTED))
+
+
+def Run_information():  # Gets and uses IPv4 info from main
     from main import get_ipv4, get_ipv6, get_ip_information
 
-    status_label.config(text="Loading information...")
+    set_status("Loading information...", "loading")
     Run_button.config(state="disabled")
     root.update_idletasks()
 
@@ -19,44 +94,27 @@ def Run_information(): #Gets and uses IPv4 info from main
         information = get_ip_information(ipv4)
 
         if information:
-            country_value.config(
-                text=information.get("country_name") or "Unknown"
-            )
-            country_code_value.config(
-                text=information.get("country") or "Unknown"
-            )
-            city_value.config(
-                text=information.get("city") or "Unknown"
-            )
-            region_value.config(
-                text=information.get("region") or "Unknown"
-            )
-            isp_value.config(
-                text=information.get("org") or "Unknown"
-            )
-            asn_value.config(
-                text=information.get("asn") or "Unknown"
-            )
+            country_value.config(text=information.get("country_name") or "Unknown")
+            country_code_value.config(text=information.get("country") or "Unknown")
+            city_value.config(text=information.get("city") or "Unknown")
+            region_value.config(text=information.get("region") or "Unknown")
+            isp_value.config(text=information.get("org") or "Unknown")
+            asn_value.config(text=information.get("asn") or "Unknown")
 
-            status_label.config(
-                text="Information fetched successfully."
-            )
+            set_status("Information fetched successfully.", "success")
 
         else:
             clear_details()
-            status_label.config(
-                text="Could not fetch location information."
-            )
+            set_status("Could not fetch location information.", "error")
 
     else:
         clear_details()
-        status_label.config(
-            text="Could not fetch public IP information."
-        )
+        set_status("Could not fetch public IP information.", "error")
 
     Run_button.config(state="normal")
 
-# Clears info field
+
+# Clear
 
 def clear_details():
     country_value.config(text="-")
@@ -73,9 +131,10 @@ def clear_information():
 
     clear_details()
 
-    status_label.config(text="Information cleared.")
+    set_status("Information cleared.", "info")
 
-# Automatic copy IP info
+
+# Copy
 
 def copy_ip():
     ipv4 = ipv4_value.cget("text")
@@ -91,9 +150,10 @@ def copy_ip():
     root.clipboard_append(ipv4)
     root.update()
 
-    status_label.config(text="IPv4 address copied to clipboard.")
+    set_status("IPv4 address copied to clipboard.", "success")
 
-# Saves current information
+
+# Save
 
 def save_report():
 
@@ -140,9 +200,7 @@ Generated by IP Address Information App
             with open(file_path, "w", encoding="utf-8") as file:
                 file.write(report)
 
-            status_label.config(
-                text="Report saved successfully."
-            )
+            set_status("Report saved successfully.", "success")
 
         except OSError:
             messagebox.showerror(
@@ -150,7 +208,52 @@ Generated by IP Address Information App
                 "The report could not be saved."
             )
 
-# Labels
+# Layout
+def create_card(parent, title):
+    """Creates a rounded-look card with an accent title. Returns the body frame."""
+    outer = tk.Frame(parent, bg=CARD_BORDER)   
+    card = tk.Frame(outer, bg=CARD)
+    card.pack(fill="both", expand=True, padx=1, pady=1)
+
+    tk.Label(
+        card,
+        text=title.upper(),
+        font=(FONT, 10, "bold"),
+        fg=ACCENT,
+        bg=CARD,
+    ).pack(anchor="w", padx=20, pady=(16, 2))
+
+    body = tk.Frame(card, bg=CARD)
+    body.pack(fill="both", expand=True, padx=20, pady=(0, 16))
+
+    return outer, body
+
+
+def create_address_block(parent, name):
+    """Large stacked label + value, used for the IP addresses."""
+    tk.Label(
+        parent,
+        text=name,
+        font=(FONT, 9, "bold"),
+        fg=MUTED,
+        bg=CARD,
+        anchor="w",
+    ).pack(fill="x", pady=(8, 0))
+
+    value = tk.Label(
+        parent,
+        text="-",
+        font=("Consolas", 15, "bold"),
+        fg=TEXT,
+        bg=CARD,
+        anchor="w",
+        justify="left",
+        wraplength=330,
+    )
+    value.pack(fill="x", pady=(2, 10))
+
+    return value
+
 
 def create_information_row(parent, row, name):
     """Creates a label and value field for IP information."""
@@ -158,27 +261,35 @@ def create_information_row(parent, row, name):
     label = tk.Label(
         parent,
         text=name,
-        font=("Arial", 11, "bold"),
-        width=15,
+        font=(FONT, 10, "bold"),
+        fg=MUTED,
+        bg=CARD,
+        width=14,
         anchor="w"
     )
-
-    label.grid(row=row, column=0, padx=10, pady=6)
+    label.grid(row=row, column=0, padx=(0, 10), pady=7, sticky="w")
 
     value = tk.Label(
         parent,
         text="-",
-        font=("Arial", 11),
-        width=35,
-        anchor="w"
+        font=(FONT, 11),
+        fg=TEXT,
+        bg=CARD,
+        anchor="w",
+        justify="left",
+        wraplength=260
     )
+    value.grid(row=row, column=1, pady=7, sticky="w")
 
-    value.grid(row=row, column=1, padx=10, pady=6)
+    # divider under each row
+    tk.Frame(parent, bg=CARD_BORDER, height=1).grid(
+        row=row, column=0, columnspan=2, sticky="sew"
+    )
 
     return value
 
-# GUI
 
+# GUI
 def create_application():
     global root
     global ipv4_value, ipv6_value
@@ -189,96 +300,93 @@ def create_application():
 
     root = tk.Tk()
 
-    root.title("IP Address Information")
-    root.geometry("600x650")
+    root.title("IP Address and Network Information")
+    root.configure(bg=BG)
     root.resizable(False, False)
 
-    # Application title
-    title_label = tk.Label(
-        root,
-        text="IP ADDRESS INFORMATION",
-        font=("Arial", 20, "bold")
-    )
-    title_label.pack(pady=20)
+    width, height = 900, 540
+    x = (root.winfo_screenwidth() - width) // 2
+    y = (root.winfo_screenheight() - height) // 2
+    root.geometry(f"{width}x{height}+{x}+{y}")
 
-    subtitle_label = tk.Label(
-        root,
-        text="Public IP and Network Information",
-        font=("Arial", 10)
-    )
-    subtitle_label.pack()
+    # Header banner 
+    header = tk.Frame(root, bg=HEADER_BG)
+    header.pack(fill="x")
 
-    # Information fields
-    info_frame = tk.Frame(root)
-    info_frame.pack(pady=20)
+    tk.Frame(header, bg=ACCENT, height=3).pack(fill="x")
 
-    ipv4_value = create_information_row(
-        info_frame, 0, "Public IPv4:"
-    )
-    ipv6_value = create_information_row(
-        info_frame, 1, "Public IPv6:"
-    )
-    country_value = create_information_row(
-        info_frame, 2, "Country:"
-    )
-    country_code_value = create_information_row(
-        info_frame, 3, "Country Code:"
-    )
-    city_value = create_information_row(
-        info_frame, 4, "City:"
-    )
-    region_value = create_information_row(
-        info_frame, 5, "Region:"
-    )
-    isp_value = create_information_row(
-        info_frame, 6, "ISP:"
-    )
-    asn_value = create_information_row(
-        info_frame, 7, "ASN:"
-    )
+    header_inner = tk.Frame(header, bg=HEADER_BG)
+    header_inner.pack(fill="x", padx=30, pady=14)
 
-    # Application buttons
-    button_frame = tk.Frame(root)
-    button_frame.pack(pady=20)
+    tk.Label(
+        header_inner,
+        text="IP ADDRESS AND NETWORK INFORMATION",
+        font=(FONT, 20, "bold"),
+        fg=TEXT,
+        bg=HEADER_BG,
+    ).pack(side="left")
 
-    Run_button = tk.Button(
-        button_frame,
-        text="Run",
-        width=12,
-        command=Run_information
+    # Side by side Cards
+    content = tk.Frame(root, bg=BG)
+    content.pack(fill="both", expand=True, padx=30, pady=(20, 8))
+    content.columnconfigure(0, weight=4, uniform="cards")
+    content.columnconfigure(1, weight=5, uniform="cards")
+    content.rowconfigure(0, weight=1)
+
+    # Left car
+    left_card, left_body = create_card(content, "Public IP Adresses")
+    left_card.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+
+    ipv4_value = create_address_block(left_body, "PUBLIC IPv4")
+    ipv6_value = create_address_block(left_body, "PUBLIC IPv6")
+
+    # Right card
+    right_card, right_body = create_card(content, "Location & Network Information")
+    right_card.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
+
+    country_value = create_information_row(right_body, 0, "Country:")
+    country_code_value = create_information_row(right_body, 1, "Country Code:")
+    city_value = create_information_row(right_body, 2, "City:")
+    region_value = create_information_row(right_body, 3, "Region:")
+    isp_value = create_information_row(right_body, 4, "ISP:")
+    asn_value = create_information_row(right_body, 5, "ASN:")
+
+    # Buttons
+    button_frame = tk.Frame(root, bg=BG)
+    button_frame.pack(pady=(8, 12))
+
+    Run_button = FlatButton(
+        button_frame, "Run", Run_information, "#22c55e", "#4ade80", fg="#052e16"
     )
-    Run_button.grid(row=0, column=0, padx=5, pady=5)
+    Run_button.grid(row=0, column=0, padx=8)
 
-    copy_button = tk.Button(
-        button_frame,
-        text="Copy IP",
-        width=12,
-        command=copy_ip
+    copy_button = FlatButton(
+        button_frame, "Copy IP", copy_ip, SECONDARY, SECONDARY_HOVER
     )
-    copy_button.grid(row=0, column=1, padx=5, pady=5)
+    copy_button.grid(row=0, column=1, padx=8)
 
-    save_button = tk.Button(
-        button_frame,
-        text="Save Report",
-        width=12,
-        command=save_report
+    save_button = FlatButton(
+        button_frame, "Save Report", save_report, SECONDARY, SECONDARY_HOVER
     )
-    save_button.grid(row=1, column=0, padx=5, pady=5)
+    save_button.grid(row=0, column=2, padx=8)
 
-    clear_button = tk.Button(
-        button_frame,
-        text="Clear",
-        width=12,
-        command=clear_information
+    clear_button = FlatButton(
+        button_frame, "Clear", clear_information, DANGER, DANGER_HOVER
     )
-    clear_button.grid(row=1, column=1, padx=5, pady=5)
+    clear_button.grid(row=0, column=3, padx=8)
 
-    # Status message
+    # Status bar 
+    status_bar = tk.Frame(root, bg=HEADER_BG)
+    status_bar.pack(fill="x", side="bottom")
+
     status_label = tk.Label(
-        root,
+        status_bar,
         text="Ready",
-        font=("Arial", 9)
+        font=(FONT, 9),
+        fg=MUTED,
+        bg=HEADER_BG,
+        anchor="w",
     )
-    status_label.pack(pady=10)
+    status_label.pack(fill="x", padx=30, pady=8)
 
     root.mainloop()
